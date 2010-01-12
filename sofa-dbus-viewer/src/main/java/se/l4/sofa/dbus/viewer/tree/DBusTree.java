@@ -10,6 +10,7 @@ import java.awt.Component;
 import java.util.concurrent.Executor;
 
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
 import javax.swing.event.TreeExpansionEvent;
 import javax.swing.event.TreeWillExpandListener;
 import javax.swing.tree.DefaultTreeCellRenderer;
@@ -18,15 +19,24 @@ import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreePath;
 
 import se.l4.sofa.dbus.Connection;
+import se.l4.sofa.dbus.DBus;
+import se.l4.sofa.dbus.SignalListener;
+import se.l4.sofa.dbus.DBus.NameOwnerChanged;
 
 public class DBusTree
 	extends JTree
 {
 	private final Executor executor;
+	private final NameListener nameListener;
+	private Connection connection;
 
+	private DefaultTreeModel model;
+	
 	public DBusTree(Executor executor)
 	{
 		this.executor = executor;
+		
+		nameListener = new NameListener();
 		
 		addTreeWillExpandListener(new ExpandListener());
 		setCellRenderer(new CellRenderer());
@@ -34,10 +44,13 @@ public class DBusTree
 		setShowsRootHandles(true);
 	}
 	
-	public void setConnection(Connection connection)
+	public void setConnection(Connection connection0)
 	{
+		final Connection oldConn = this.connection;
+		this.connection = connection0;
+		
 		final RootNode node = new RootNode(connection);
-		DefaultTreeModel model = new DefaultTreeModel(node, true);
+		model = new DefaultTreeModel(node, true);
 		node.setModel(model);
 		setModel(model);
 		
@@ -47,6 +60,13 @@ public class DBusTree
 			{
 				try
 				{
+					if(oldConn != null)
+					{
+						oldConn.removeSignalListener(DBus.NameOwnerChanged.class, nameListener);
+					}
+					
+					connection.addSignalListener(DBus.NameOwnerChanged.class, nameListener);
+					
 					node.load();
 				}
 				catch(Exception e)
@@ -55,6 +75,49 @@ public class DBusTree
 				}
 			}
 		});
+	}
+	
+	private class NameListener
+		implements SignalListener<DBus.NameOwnerChanged>
+	{
+		public void signalReceived(final NameOwnerChanged signal)
+		{
+			SwingUtilities.invokeLater(new Runnable()
+			{
+				public void run()
+				{
+					RootNode root = (RootNode) getModel().getRoot();
+					if("".equals(signal.getOldOwner()))
+					{
+						// New bus so add a new node
+						BusNode node = new BusNode(connection, signal.getName());
+						root.add(node);
+						model.nodesWereInserted(
+							root, 
+							new int[] { root.getChildCount() - 1 }
+						);
+					}
+					else
+					{
+						// Existing bus has left
+						for(int i=0, n=root.getChildCount(); i<n; i++)
+						{
+							Object o = root.getChildAt(i);
+							if(o instanceof BusNode)
+							{
+								if(((BusNode) o).getBusName().equals(signal.getName()))
+								{
+									root.remove(i);
+									model.nodesWereRemoved(root, new int[] { i }, new Object[] { o });
+									break;
+								}
+							}
+						}
+					}
+					
+				}
+			});
+		}
 	}
 	
 	private class CellRenderer
