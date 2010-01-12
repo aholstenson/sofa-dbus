@@ -38,10 +38,14 @@ public class SignalMessageHandler
 	
 	private final List<SignalInfo> signals;
 	private final DBus dbus;
+
+	private final Endian endian;
 	
-	public SignalMessageHandler(DBus dbus)
+	public SignalMessageHandler(DBus dbus, Endian endian)
 	{
 		this.dbus = dbus;
+		this.endian = endian;
+		
 		signals = new CopyOnWriteArrayList<SignalInfo>();
 	}
 	
@@ -237,10 +241,11 @@ public class SignalMessageHandler
 				
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			DBusOutputStream dbusOut = new DBusOutputStream(out);
+			dbusOut.setEndian(endian);
 			Marshalling.serialize(classSig, data, dbusOut);
 				
 			Message msg = new Message(
-				Endian.BIG, 
+				endian, 
 				Message.TYPE_SIGNAL, 
 				Message.FLAG_NO_REPLY_EXPECTED, 
 				connection.nextSerial(), 

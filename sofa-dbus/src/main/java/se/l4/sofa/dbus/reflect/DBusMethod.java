@@ -151,7 +151,7 @@ public class DBusMethod
 	 * @throws Exception
 	 * 		if unable to invoke the method for any reason
 	 */
-	public Object invoke(Channel c, String bus, String path, Object[] args)
+	public Object invoke(Channel c, Endian endian, String bus, String path, Object[] args)
 		throws Exception
 	{
 		SubSignature[] subs = requestSignature.getSignatures();
@@ -168,6 +168,7 @@ public class DBusMethod
 		// Serialize the arguments according to signature
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		DBusOutputStream dbusOut = new DBusOutputStream(out);
+		dbusOut.setEndian(endian);
 		Marshalling.serialize(requestSignature, o, dbusOut);
 		byte[] data = out.toByteArray();
 		
@@ -176,7 +177,7 @@ public class DBusMethod
 		
 		int flags = 0;
 		
-		Message m = new Message(Endian.BIG, Message.TYPE_METHOD_CALL, flags, serial, data);
+		Message m = new Message(endian, Message.TYPE_METHOD_CALL, flags, serial, data);
 		m.addField(Message.FIELD_DESTINATION, bus);
 		m.addField(Message.FIELD_PATH, new ObjectPath(path));
 		m.addField(Message.FIELD_MEMBER, name);

@@ -13,6 +13,7 @@ import se.l4.sofa.dbus.reflect.DBusProxyHandler;
 import se.l4.sofa.dbus.reflect.PathImpl;
 import se.l4.sofa.dbus.reflect.SignalMessageHandler;
 import se.l4.sofa.dbus.spi.Channel;
+import se.l4.sofa.dbus.spi.Endian;
 
 /**
  * Connection to a DBus server, usually the session or system bus.
@@ -31,6 +32,8 @@ public class BusConnection
 	private final Set<String> names;
 	private final Set<String> unmodifiableNames;
 	private String firstName;
+	
+	private Endian endian;
 	
 	public BusConnection(BusAddress address, String[] saslMechanisms,
 			CallbackHandler authentication)
@@ -51,6 +54,11 @@ public class BusConnection
 		this(new BusAddress(address));
 	}
 	
+	public void setEndian(Endian endian)
+	{
+		this.endian = endian;
+	}
+	
 	@Override
 	public void connect()
 		throws IOException
@@ -62,12 +70,12 @@ public class BusConnection
 		{
 			try
 			{
-				proxying = new DBusProxyHandler(this, c);
+				proxying = new DBusProxyHandler(this, endian, c);
 				addHandler(proxying);
 				
 				dbus = get("org.freedesktop.DBus", "/org/freedesktop/DBus", DBus.class);
 				
-				signals = new SignalMessageHandler(dbus);
+				signals = new SignalMessageHandler(dbus, endian);
 				addHandler(signals);
 				
 				String name = dbus.hello();

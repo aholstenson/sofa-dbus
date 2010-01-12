@@ -47,6 +47,17 @@ public class Marshalling
 	
 	private static int MAX_ARRAY_LEN = 67108864;
 	
+	public static Signature getSignatureForObjects(Object... items)
+	{
+		StringBuilder b = new StringBuilder();
+		for(Object o : items)
+		{
+			getSignature(o.getClass(), b);
+		}
+		
+		return Signature.parse(b.toString());
+	}
+	
 	public static String getSignature(Type type)
 	{
 		StringBuilder b = new StringBuilder();
@@ -514,6 +525,7 @@ public class Marshalling
 					ByteArrayOutputStream byteStream = 
 						new ByteArrayOutputStream();
 					DBusOutputStream out = new DBusOutputStream(byteStream);
+					out.setEndian(stream.getEndian());
 					
 					SubSignature valueSig = subs[0];
 					// Find the alignment

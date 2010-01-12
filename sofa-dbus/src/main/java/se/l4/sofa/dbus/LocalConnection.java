@@ -9,6 +9,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 import se.l4.sofa.dbus.reflect.PathImpl;
 import se.l4.sofa.dbus.reflect.SignalMessageHandler;
+import se.l4.sofa.dbus.spi.Endian;
 
 /**
  * A DBus connection that is local and works only within the program starting
@@ -45,7 +46,7 @@ public class LocalConnection
 	public LocalConnection()
 	{
 		dbus = new LocalDBus();
-		signals = new SignalMessageHandler(dbus);
+		signals = new SignalMessageHandler(dbus, Endian.BIG);
 		
 		name = ":local";
 		names = new CopyOnWriteArraySet<String>();

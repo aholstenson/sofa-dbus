@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,15 +44,17 @@ public class DBusProxyHandler
 	private static final Logger logger = LoggerFactory.getLogger(DBusProxyHandler.class);
 	
 	private final Connection connection;
+	private final Endian endian;
 	private final Channel channel;
 	private final MethodCache cache;
 	
 	private final Map<String, ExportedInterface> paths;
 	private final Introspection introspection;
 	
-	public DBusProxyHandler(Connection connection, Channel channel)
+	public DBusProxyHandler(Connection connection, Endian endian, Channel channel)
 	{
 		this.connection = connection;
+		this.endian = endian;
 		this.channel = channel;
 		
 		cache = new MethodCache();
@@ -102,7 +105,7 @@ public class DBusProxyHandler
 		);
 	}
 	
-	public boolean handle(Message message, Channel connection)
+	public boolean handle(Message message, Channel channel)
 	{
 		if(message.getType() == Message.TYPE_METHOD_CALL)
 		{
@@ -113,6 +116,13 @@ public class DBusProxyHandler
 				String member = (String) message.getField(Message.FIELD_MEMBER);
 				String sender = (String) message.getField(Message.FIELD_SENDER);
 				String destination = (String) message.getField(Message.FIELD_DESTINATION);
+				
+				// Make sure we only handle our own method calls
+				Set<String> names = connection.getNames();
+				if(false == names.contains(destination))
+				{
+					return false;
+				}
 				
 				long serial = message.getSerial();
 				
@@ -157,13 +167,14 @@ public class DBusProxyHandler
 						// Let's marshall the result
 						ByteArrayOutputStream out = new ByteArrayOutputStream();
 						DBusOutputStream dbusOut = new DBusOutputStream(out);
+						dbusOut.setEndian(endian);
 						Marshalling.serialize(returnSig.getValue(), result.toArray(), dbusOut);
 						
 						Message msg = new Message(
-							Endian.BIG, 
+							endian, 
 							Message.TYPE_METHOD_RETURN, 
 							Message.FLAG_NO_REPLY_EXPECTED, 
-							connection.nextSerial(), 
+							channel.nextSerial(), 
 							out.toByteArray()
 						);
 						
@@ -172,7 +183,7 @@ public class DBusProxyHandler
 						msg.addField(Message.FIELD_DESTINATION, sender);
 		//					msg.addField(Message.FIELD_SENDER, sender);
 						
-						connection.sendMessage(msg);
+						channel.sendMessage(msg);
 					}
 					else
 					{
@@ -189,13 +200,14 @@ public class DBusProxyHandler
 						
 					ByteArrayOutputStream out = new ByteArrayOutputStream();
 					DBusOutputStream dbusOut = new DBusOutputStream(out);
+					dbusOut.setEndian(endian);
 					Marshalling.serialize(classSig, data, dbusOut);
 						
 					Message msg = new Message(
-						Endian.BIG, 
+						endian, 
 						Message.TYPE_ERROR, 
 						Message.FLAG_NO_REPLY_EXPECTED, 
-						connection.nextSerial(), 
+						channel.nextSerial(), 
 						out.toByteArray()
 					);
 						
@@ -204,7 +216,7 @@ public class DBusProxyHandler
 					msg.addField(Message.FIELD_DESTINATION, sender);
 					msg.addField(Message.FIELD_ERROR_NAME, DBusHelper.getNameForInterface(c));
 					
-					connection.sendMessage(msg);
+					channel.sendMessage(msg);
 				}
 				
 				return true;
@@ -262,7 +274,7 @@ public class DBusProxyHandler
 			
 			try
 			{
-				return dbusMethod.invoke(channel, bus, path, args);
+				return dbusMethod.invoke(channel, endian, bus, path, args);
 			}
 			catch(Exception e)
 			{

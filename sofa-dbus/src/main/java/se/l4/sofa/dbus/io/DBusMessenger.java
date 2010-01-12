@@ -37,7 +37,7 @@ public class DBusMessenger
 	}
 	
 	public synchronized void writeMessage(Message m)
-		throws IOException, InterruptedException
+		throws IOException
 	{
 		logger.debug("Writing message {}", m);
 		
