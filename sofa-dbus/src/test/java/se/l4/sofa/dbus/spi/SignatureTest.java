@@ -89,6 +89,14 @@ public class SignatureTest
 		checkParse("{ias}");
 	}
 	
+	public void testMultiple()
+	{
+		checkParse("sss");
+		checkParse("suu");
+		checkParse("uas");
+		checkParse("ua{si}");
+	}
+	
 	private static void checkParse(String s)
 	{
 		Signature sig = Signature.parse(s);

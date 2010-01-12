@@ -249,10 +249,15 @@ public class Signature
 		{
 			return EMTPY_SIGNATURE;
 		}
-			
+		
 		List<SubSignature> subs = new ArrayList<SubSignature>(signatureString.length());
 		MutableInt idx = new MutableInt();
-		parse(signatureString, subs, idx);
+		
+		int length = signatureString.length();
+		while(idx.value < length)
+		{
+			parse(signatureString, subs, idx);
+		}
 		
 		return new Signature(subs.toArray(EMTPY_ARRAY));
 	}
